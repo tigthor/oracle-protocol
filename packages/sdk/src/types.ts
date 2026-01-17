@@ -71,3 +71,41 @@ export interface OrderBook {
   midPrice: number;
   lastUpdate: number;
 }
+
+export interface Order {
+  id: string;
+  marketId: string;
+  side: OrderSide;
+  type: OrderType;
+  price: number;
+  size: number;
+  filledSize: number;
+  status: OrderStatus;
+  createdAt: number;
+  updatedAt: number;
+  txHash: string | null;
+}
+
+export interface Position {
+  marketId: string;
+  market: Market;
+  side: OrderSide;
+  size: number;
+  avgEntryPrice: number;
+  currentPrice: number;
+  unrealizedPnl: number;
+  realizedPnl: number;
+  maxPayout: number;
+}
+
+export interface Trade {
+  id: string;
+  marketId: string;
+  side: OrderSide;
+  price: number;
+  size: number;
+  timestamp: number;
+  maker: string;
+  taker: string;
+  txHash: string;
+}
