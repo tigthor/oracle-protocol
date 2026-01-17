@@ -17,3 +17,22 @@ export enum MarketCategory {
   POLITICS = "politics",
   CUSTOM = "custom",
 }
+
+export enum OrderSide {
+  YES = "yes",
+  NO = "no",
+}
+
+export enum OrderType {
+  MARKET = "market",
+  LIMIT = "limit",
+}
+
+export enum OrderStatus {
+  PENDING = "pending",
+  OPEN = "open",
+  FILLED = "filled",
+  PARTIALLY_FILLED = "partially_filled",
+  CANCELLED = "cancelled",
+  EXPIRED = "expired",
+}
