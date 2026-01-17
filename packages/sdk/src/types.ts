@@ -36,3 +36,38 @@ export enum OrderStatus {
   CANCELLED = "cancelled",
   EXPIRED = "expired",
 }
+
+export interface Market {
+  id: string;
+  question: string;
+  description: string;
+  category: MarketCategory;
+  status: MarketStatus;
+  createdAt: number;
+  expiresAt: number;
+  resolutionSource: string;
+  outcomeAssetId: string | null;
+  yesPrice: number;
+  noPrice: number;
+  volume24h: number;
+  totalVolume: number;
+  liquidity: number;
+  resolution: 0 | 1 | null;
+  tags: string[];
+}
+
+export interface OrderBookLevel {
+  price: number;
+  size: number;
+  total: number;
+  orders: number;
+}
+
+export interface OrderBook {
+  marketId: string;
+  bids: OrderBookLevel[];
+  asks: OrderBookLevel[];
+  spread: number;
+  midPrice: number;
+  lastUpdate: number;
+}
