@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+// ═══════════════════════════════════════════════════════
+// ORACLE PROTOCOL — Core Type Definitions
+// ═══════════════════════════════════════════════════════
+
+// ── Market Types ──
+
 export enum MarketStatus {
   PENDING = "pending",
   ACTIVE = "active",
@@ -46,9 +52,9 @@ export interface Market {
   createdAt: number;
   expiresAt: number;
   resolutionSource: string;
-  outcomeAssetId: string | null;
-  yesPrice: number;
-  noPrice: number;
+  outcomeAssetId: string | null; // HIP-4 asset ID on HyperCore
+  yesPrice: number; // 0.00 - 1.00
+  noPrice: number; // 0.00 - 1.00
   volume24h: number;
   totalVolume: number;
   liquidity: number;
@@ -57,16 +63,16 @@ export interface Market {
 }
 
 export interface OrderBookLevel {
-  price: number;
-  size: number;
-  total: number;
-  orders: number;
+  price: number; // 0.01 - 0.99
+  size: number; // Number of contracts
+  total: number; // Cumulative size
+  orders: number; // Number of orders at this level
 }
 
 export interface OrderBook {
   marketId: string;
-  bids: OrderBookLevel[];
-  asks: OrderBookLevel[];
+  bids: OrderBookLevel[]; // YES buy orders
+  asks: OrderBookLevel[]; // NO buy orders (inverse)
   spread: number;
   midPrice: number;
   lastUpdate: number;
@@ -110,6 +116,8 @@ export interface Trade {
   txHash: string;
 }
 
+// ── API Response Types ──
+
 export interface ApiResponse<T> {
   success: boolean;
   data: T;
@@ -123,6 +131,8 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
   total: number;
   hasMore: boolean;
 }
+
+// ── WebSocket Event Types ──
 
 export enum WsEventType {
   MARKET_UPDATE = "market:update",
@@ -140,3 +150,54 @@ export interface WsEvent<T = unknown> {
   data: T;
   timestamp: number;
 }
+
+// ── Validation Schemas ──
+
+export const CreateMarketSchema = z.object({
+  question: z.string().min(10).max(200),
+  description: z.string().max(1000).optional(),
+  category: z.nativeEnum(MarketCategory),
+  expiresAt: z.number().int().positive(),
+  resolutionSource: z.string().url().optional(),
+  tags: z.array(z.string()).max(5).optional(),
+});
+
+export const PlaceOrderSchema = z.object({
+  marketId: z.string(),
+  side: z.nativeEnum(OrderSide),
+  type: z.nativeEnum(OrderType),
+  size: z.number().positive(),
+  price: z.number().min(0.01).max(0.99).optional(),
+});
+
+export type CreateMarketInput = z.infer<typeof CreateMarketSchema>;
+export type PlaceOrderInput = z.infer<typeof PlaceOrderSchema>;
+
+// ── Config ──
+
+export interface OracleConfig {
+  hyperliquidApiUrl: string;
+  hyperliquidWsUrl: string;
+  oracleApiUrl: string;
+  oracleWsUrl: string;
+  chainId: number;
+  isTestnet: boolean;
+}
+
+export const TESTNET_CONFIG: OracleConfig = {
+  hyperliquidApiUrl: "https://api.hyperliquid-testnet.xyz",
+  hyperliquidWsUrl: "wss://api.hyperliquid-testnet.xyz/ws",
+  oracleApiUrl: "http://localhost:4000",
+  oracleWsUrl: "ws://localhost:4000",
+  chainId: 998,
+  isTestnet: true,
+};
+
+export const MAINNET_CONFIG: OracleConfig = {
+  hyperliquidApiUrl: "https://api.hyperliquid.xyz",
+  hyperliquidWsUrl: "wss://api.hyperliquid.xyz/ws",
+  oracleApiUrl: "https://api.oracle.markets",
+  oracleWsUrl: "wss://ws.oracle.markets",
+  chainId: 999,
+  isTestnet: false,
+};
