@@ -109,3 +109,17 @@ export interface Trade {
   taker: string;
   txHash: string;
 }
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  error?: string;
+  timestamp: number;
+}
+
+export interface PaginatedResponse<T> extends ApiResponse<T[]> {
+  page: number;
+  limit: number;
+  total: number;
+  hasMore: boolean;
+}
