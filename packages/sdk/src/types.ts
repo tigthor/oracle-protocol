@@ -123,3 +123,20 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
   total: number;
   hasMore: boolean;
 }
+
+export enum WsEventType {
+  MARKET_UPDATE = "market:update",
+  ORDERBOOK_SNAPSHOT = "orderbook:snapshot",
+  ORDERBOOK_DELTA = "orderbook:delta",
+  TRADE = "trade",
+  POSITION_UPDATE = "position:update",
+  ORDER_UPDATE = "order:update",
+  MARKET_RESOLVED = "market:resolved",
+  PRICE_TICK = "price:tick",
+}
+
+export interface WsEvent<T = unknown> {
+  type: WsEventType;
+  data: T;
+  timestamp: number;
+}
