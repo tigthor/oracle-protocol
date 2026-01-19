@@ -90,7 +90,12 @@ type WsCallback = (data: any) => void;
 
 export class HyperliquidClient extends EventEmitter {
   private http: AxiosInstance;
+  private ws: WebSocket | null = null;
   private config: OracleConfig;
+  private wsSubscriptions: Map<string, Set<WsCallback>> = new Map();
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 10;
+  private heartbeatInterval: NodeJS.Timeout | null = null;
 
   constructor(config: OracleConfig = TESTNET_CONFIG) {
     super();
@@ -221,5 +226,173 @@ export class HyperliquidClient extends EventEmitter {
       req: { coin, interval, startTime, endTime },
     });
     return data;
+  }
+
+  // ── WebSocket Methods ──
+
+  /**
+   * Connect to Hyperliquid WebSocket for real-time data
+   */
+  connectWs(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        // In Node.js, use 'ws' package. In browser, native WebSocket.
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const WsClass =
+          typeof (globalThis as any).window !== "undefined" ? (globalThis as any).window.WebSocket : require("ws");
+        this.ws = new WsClass(this.config.hyperliquidWsUrl);
+
+        this.ws!.onopen = () => {
+          console.log("[HL-WS] Connected to Hyperliquid WebSocket");
+          this.reconnectAttempts = 0;
+          this.startHeartbeat();
+          this.emit("ws:connected");
+          resolve();
+        };
+
+        this.ws!.onmessage = (event: MessageEvent | { data: string }) => {
+          try {
+            const msg = JSON.parse(
+              typeof event.data === "string" ? event.data : event.data.toString()
+            );
+            this.handleWsMessage(msg);
+          } catch (err) {
+            console.error("[HL-WS] Parse error:", err);
+          }
+        };
+
+        this.ws!.onclose = () => {
+          console.log("[HL-WS] Disconnected");
+          this.stopHeartbeat();
+          this.emit("ws:disconnected");
+          this.attemptReconnect();
+        };
+
+        this.ws!.onerror = (err: any) => {
+          console.error("[HL-WS] Error:", err);
+          this.emit("ws:error", err);
+          reject(err);
+        };
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
+  // Real-time data subscriptions
+  /**
+   * Subscribe to real-time all mid prices
+   */
+  subscribeAllMids(callback: WsCallback): void {
+    this.wsSubscribe({ type: "allMids" }, "allMids", callback);
+  }
+
+  /**
+   * Subscribe to L2 book updates for a specific coin
+   */
+  subscribeL2Book(coin: string, callback: WsCallback): void {
+    this.wsSubscribe({ type: "l2Book", coin }, `l2Book:${coin}`, callback);
+  }
+
+  /**
+   * Subscribe to trades for a specific coin
+   */
+  subscribeTrades(coin: string, callback: WsCallback): void {
+    this.wsSubscribe({ type: "trades", coin }, `trades:${coin}`, callback);
+  }
+
+  /** Subscribe to user events (fills, orders, etc.) */
+  subscribeUserEvents(address: string, callback: WsCallback): void {
+    this.wsSubscribe(
+      { type: "userEvents", user: address },
+      `userEvents:${address}`,
+      callback
+    );
+  }
+
+  /**
+   * Unsubscribe from a channel
+   */
+  unsubscribe(channel: string): void {
+    this.wsSubscriptions.delete(channel);
+    if (this.ws?.readyState === 1) {
+      this.ws.send(
+        JSON.stringify({
+          method: "unsubscribe",
+          subscription: { type: channel.split(":")[0] },
+        })
+      );
+    }
+  }
+
+  /**
+   * Disconnect WebSocket
+   */
+  disconnectWs(): void {
+    this.stopHeartbeat();
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+  }
+
+  // ── Private Methods ──
+
+  private wsSubscribe(
+    subscription: object,
+    channel: string,
+    callback: WsCallback
+  ): void {
+    if (!this.wsSubscriptions.has(channel)) {
+      this.wsSubscriptions.set(channel, new Set());
+    }
+    this.wsSubscriptions.get(channel)!.add(callback);
+
+    if (this.ws?.readyState === 1) {
+      this.ws.send(
+        JSON.stringify({ method: "subscribe", subscription })
+      );
+    }
+  }
+
+  private handleWsMessage(msg: any): void {
+    const { channel, data } = msg;
+    if (!channel) return;
+
+    const subs = this.wsSubscriptions.get(channel);
+    if (subs) {
+      subs.forEach((cb) => cb(data));
+    }
+    this.emit(channel, data);
+  }
+
+  // Send ping every 15s to keep connection alive
+  private startHeartbeat(): void {
+    this.heartbeatInterval = setInterval(() => {
+      if (this.ws?.readyState === 1) {
+        this.ws.send(JSON.stringify({ method: "ping" }));
+      }
+    }, 15000);
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+  }
+
+  private attemptReconnect(): void {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error("[HL-WS] Max reconnect attempts reached");
+      this.emit("ws:maxReconnectReached");
+      return;
+    }
+    const delay = Math.min(1000 * 2 ** this.reconnectAttempts, 30000);
+    this.reconnectAttempts++;
+    console.log(
+      `[HL-WS] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`
+    );
+    setTimeout(() => this.connectWs().catch(() => {}), delay);
   }
 }
