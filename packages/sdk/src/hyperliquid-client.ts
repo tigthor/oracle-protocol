@@ -279,7 +279,7 @@ export class HyperliquidClient extends EventEmitter {
     });
   }
 
-  // Real-time data subscriptions
+  // Real-time data subscriptions — allMids, L2 book, trades
   /**
    * Subscribe to real-time all mid prices
    */
