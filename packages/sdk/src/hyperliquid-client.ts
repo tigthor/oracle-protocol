@@ -366,7 +366,7 @@ export class HyperliquidClient extends EventEmitter {
     this.emit(channel, data);
   }
 
-  // Send ping every 15s to keep connection alive
+  // Send ping every 15s to keep connection alive — prevents idle timeout
   private startHeartbeat(): void {
     this.heartbeatInterval = setInterval(() => {
       if (this.ws?.readyState === 1) {
