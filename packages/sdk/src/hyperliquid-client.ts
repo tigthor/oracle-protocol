@@ -301,7 +301,7 @@ export class HyperliquidClient extends EventEmitter {
     this.wsSubscribe({ type: "trades", coin }, `trades:${coin}`, callback);
   }
 
-  /** Subscribe to user events (fills, orders, etc.) */
+  /** Subscribe to user events (fills, orders, liquidations, etc.) */
   subscribeUserEvents(address: string, callback: WsCallback): void {
     this.wsSubscribe(
       { type: "userEvents", user: address },
