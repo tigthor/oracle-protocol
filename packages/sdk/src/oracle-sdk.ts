@@ -61,4 +61,65 @@ export class OracleSDK extends EventEmitter {
       this.startPolling();
     }
   }
+
+  // ── Market Operations ──
+
+  async getMarkets(): Promise<Market[]> {
+    const [meta, assetCtxs] = await this.hl.getMetaAndAssetCtxs();
+    const allMids = await this.hl.getAllMids();
+
+    const markets: Market[] = meta.universe.map((asset, idx) => {
+      const ctx = assetCtxs[idx];
+      const midPx = parseFloat(allMids[asset.name] || ctx.midPx || "0");
+      const yesPrice = Math.min(Math.max(midPx > 1 ? 0.5 : midPx, 0.01), 0.99);
+
+      const market: Market = {
+        id: `hl-${asset.name}`,
+        question: this.generateQuestion(asset.name),
+        description: `Outcome market for ${asset.name} on Hyperliquid`,
+        category: this.categorizeAsset(asset.name),
+        status: MarketStatus.ACTIVE,
+        createdAt: Date.now() - 86400000 * 7,
+        expiresAt: Date.now() + 86400000 * 30,
+        resolutionSource: "hypercore_mark_price",
+        outcomeAssetId: asset.name,
+        yesPrice,
+        noPrice: 1 - yesPrice,
+        volume24h: parseFloat(ctx.dayNtlVlm || "0"),
+        totalVolume: parseFloat(ctx.dayNtlVlm || "0") * 30,
+        liquidity: parseFloat(ctx.openInterest || "0"),
+        resolution: null,
+        tags: [asset.name.toLowerCase()],
+      };
+
+      this.markets.set(market.id, market);
+      return market;
+    });
+
+    return markets;
+  }
+
+  async getMarket(marketId: string): Promise<Market | null> {
+    if (this.markets.has(marketId)) {
+      return this.markets.get(marketId)!;
+    }
+    await this.getMarkets();
+    return this.markets.get(marketId) || null;
+  }
+
+  private generateQuestion(assetName: string): string {
+    const templates: Record<string, string> = {
+      BTC: "Will BTC be above $100,000 at expiry?",
+      ETH: "Will ETH be above $4,000 at expiry?",
+      SOL: "Will SOL be above $200 at expiry?",
+      HYPE: "Will HYPE be above $50 at expiry?",
+    };
+    return templates[assetName] || `Will ${assetName} be above current price at expiry?`;
+  }
+
+  private categorizeAsset(name: string): MarketCategory {
+    const crypto = ["BTC", "ETH", "SOL", "HYPE", "AVAX", "DOGE", "ARB"];
+    if (crypto.includes(name)) return MarketCategory.CRYPTO;
+    return MarketCategory.CUSTOM;
+  }
 }
