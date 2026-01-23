@@ -122,4 +122,26 @@ export class OracleSDK extends EventEmitter {
     if (crypto.includes(name)) return MarketCategory.CRYPTO;
     return MarketCategory.CUSTOM;
   }
+
+  async getOrderBook(coin: string): Promise<OrderBook> {
+    const book = await this.hl.getL2Book(coin);
+    const mapLevel = (levels: HLBookLevel[], running: number = 0): OrderBookLevel[] =>
+      levels.map((l) => {
+        running += parseFloat(l.sz);
+        return { price: parseFloat(l.px), size: parseFloat(l.sz), total: running, orders: l.n };
+      });
+
+    const bids = mapLevel(book.levels[0]);
+    const asks = mapLevel(book.levels[1]);
+    const bestBid = bids.length > 0 ? bids[0].price : 0;
+    const bestAsk = asks.length > 0 ? asks[0].price : 1;
+
+    return {
+      marketId: `hl-${coin}`,
+      bids, asks,
+      spread: bestAsk - bestBid,
+      midPrice: (bestBid + bestAsk) / 2,
+      lastUpdate: book.time || Date.now(),
+    };
+  }
 }
