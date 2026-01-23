@@ -144,4 +144,43 @@ export class OracleSDK extends EventEmitter {
       lastUpdate: book.time || Date.now(),
     };
   }
+
+  async getRecentTrades(coin: string): Promise<Trade[]> {
+    const hlTrades = await this.hl.getRecentTrades(coin);
+    return hlTrades.map((t) => ({
+      id: t.hash, marketId: `hl-${coin}`,
+      side: t.side === "B" ? OrderSide.YES : OrderSide.NO,
+      price: parseFloat(t.px), size: parseFloat(t.sz),
+      timestamp: t.time, maker: "", taker: "", txHash: t.hash,
+    }));
+  }
+
+  async getUserPositions(address: string): Promise<Position[]> {
+    const state = await this.hl.getUserState(address);
+    return state.assetPositions
+      .filter((p) => parseFloat(p.position.szi) !== 0)
+      .map((p) => {
+        const size = parseFloat(p.position.szi);
+        const entryPx = parseFloat(p.position.entryPx || "0");
+        const markPx = this.priceCache.get(p.position.coin) || entryPx;
+        return {
+          marketId: `hl-${p.position.coin}`,
+          market: this.markets.get(`hl-${p.position.coin}`) || ({} as Market),
+          side: size > 0 ? OrderSide.YES : OrderSide.NO,
+          size: Math.abs(size), avgEntryPrice: entryPx, currentPrice: markPx,
+          unrealizedPnl: parseFloat(p.position.unrealizedPnl || "0"),
+          realizedPnl: 0, maxPayout: Math.abs(size),
+        };
+      });
+  }
+
+  async getUserBalance(address: string): Promise<{ accountValue: number; withdrawable: number; totalMarginUsed: number; positions: number }> {
+    const state = await this.hl.getUserState(address);
+    return {
+      accountValue: parseFloat(state.crossMarginSummary.accountValue),
+      withdrawable: parseFloat(state.withdrawable),
+      totalMarginUsed: parseFloat(state.crossMarginSummary.totalMarginUsed),
+      positions: state.assetPositions.filter((p) => parseFloat(p.position.szi) !== 0).length,
+    };
+  }
 }
