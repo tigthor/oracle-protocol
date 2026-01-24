@@ -183,4 +183,25 @@ export class OracleSDK extends EventEmitter {
       positions: state.assetPositions.filter((p) => parseFloat(p.position.szi) !== 0).length,
     };
   }
+
+  async getCandles(coin: string, interval: string = "1h", lookbackMs: number = 86400000 * 7): Promise<Array<{ time: number; open: number; high: number; low: number; close: number; volume: number }>> {
+    const now = Date.now();
+    const candles = await this.hl.getCandleSnapshot(coin, interval, now - lookbackMs, now);
+    return candles.map((c: any) => ({
+      time: c.t, open: parseFloat(c.o), high: parseFloat(c.h),
+      low: parseFloat(c.l), close: parseFloat(c.c), volume: parseFloat(c.v),
+    }));
+  }
+
+  subscribeMarket(coin: string): void {
+    this.hl.subscribeL2Book(coin, (data) => this.emit(WsEventType.ORDERBOOK_DELTA, { coin, ...data }));
+    this.hl.subscribeTrades(coin, (data) => this.emit(WsEventType.TRADE, { coin, trades: data }));
+  }
+
+  subscribePrices(): void {
+    this.hl.subscribeAllMids((data) => {
+      Object.entries(data.mids || {}).forEach(([coin, px]) => this.priceCache.set(coin, parseFloat(px as string)));
+      this.emit(WsEventType.PRICE_TICK, data);
+    });
+  }
 }
