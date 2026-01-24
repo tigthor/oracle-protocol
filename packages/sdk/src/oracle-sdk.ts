@@ -31,27 +31,14 @@ export class OracleSDK extends EventEmitter {
     this.hl = new HyperliquidClient(config);
   }
 
-  // ── Initialization ──
-
   async initialize(): Promise<void> {
-    console.log(
-      `[Oracle] Initializing ${this.config.isTestnet ? "TESTNET" : "MAINNET"}...`
-    );
-
-    // Fetch all available assets and identify outcome contracts
+    console.log(`[Oracle] Initializing ${this.config.isTestnet ? "TESTNET" : "MAINNET"}...`);
     const [meta, assetCtxs] = await this.hl.getMetaAndAssetCtxs();
-
     meta.universe.forEach((asset, idx) => {
       const ctx = assetCtxs[idx];
-      // Map all assets — in production, filter for outcome-type only
       this.priceCache.set(asset.name, parseFloat(ctx.midPx || "0"));
     });
-
-    console.log(
-      `[Oracle] Loaded ${meta.universe.length} assets from Hyperliquid`
-    );
-
-    // Connect WebSocket for real-time updates
+    console.log(`[Oracle] Loaded ${meta.universe.length} assets from Hyperliquid`);
     try {
       await this.hl.connectWs();
       this.setupWsListeners();
@@ -62,17 +49,13 @@ export class OracleSDK extends EventEmitter {
     }
   }
 
-  // ── Market Operations ──
-
   async getMarkets(): Promise<Market[]> {
     const [meta, assetCtxs] = await this.hl.getMetaAndAssetCtxs();
     const allMids = await this.hl.getAllMids();
-
     const markets: Market[] = meta.universe.map((asset, idx) => {
       const ctx = assetCtxs[idx];
       const midPx = parseFloat(allMids[asset.name] || ctx.midPx || "0");
       const yesPrice = Math.min(Math.max(midPx > 1 ? 0.5 : midPx, 0.01), 0.99);
-
       const market: Market = {
         id: `hl-${asset.name}`,
         question: this.generateQuestion(asset.name),
@@ -91,36 +74,19 @@ export class OracleSDK extends EventEmitter {
         resolution: null,
         tags: [asset.name.toLowerCase()],
       };
-
       this.markets.set(market.id, market);
       return market;
     });
-
     return markets;
   }
 
   async getMarket(marketId: string): Promise<Market | null> {
+    // Cache hit: return stored market without re-fetching
     if (this.markets.has(marketId)) {
       return this.markets.get(marketId)!;
     }
     await this.getMarkets();
     return this.markets.get(marketId) || null;
-  }
-
-  private generateQuestion(assetName: string): string {
-    const templates: Record<string, string> = {
-      BTC: "Will BTC be above $100,000 at expiry?",
-      ETH: "Will ETH be above $4,000 at expiry?",
-      SOL: "Will SOL be above $200 at expiry?",
-      HYPE: "Will HYPE be above $50 at expiry?",
-    };
-    return templates[assetName] || `Will ${assetName} be above current price at expiry?`;
-  }
-
-  private categorizeAsset(name: string): MarketCategory {
-    const crypto = ["BTC", "ETH", "SOL", "HYPE", "AVAX", "DOGE", "ARB"];
-    if (crypto.includes(name)) return MarketCategory.CRYPTO;
-    return MarketCategory.CUSTOM;
   }
 
   async getOrderBook(coin: string): Promise<OrderBook> {
@@ -130,12 +96,10 @@ export class OracleSDK extends EventEmitter {
         running += parseFloat(l.sz);
         return { price: parseFloat(l.px), size: parseFloat(l.sz), total: running, orders: l.n };
       });
-
     const bids = mapLevel(book.levels[0]);
     const asks = mapLevel(book.levels[1]);
     const bestBid = bids.length > 0 ? bids[0].price : 0;
     const bestAsk = asks.length > 0 ? asks[0].price : 1;
-
     return {
       marketId: `hl-${coin}`,
       bids, asks,
@@ -203,5 +167,48 @@ export class OracleSDK extends EventEmitter {
       Object.entries(data.mids || {}).forEach(([coin, px]) => this.priceCache.set(coin, parseFloat(px as string)));
       this.emit(WsEventType.PRICE_TICK, data);
     });
+  }
+
+  private generateQuestion(assetName: string): string {
+    const templates: Record<string, string> = {
+      BTC: "Will BTC be above $100,000 at expiry?",
+      ETH: "Will ETH be above $4,000 at expiry?",
+      SOL: "Will SOL be above $200 at expiry?",
+      HYPE: "Will HYPE be above $50 at expiry?",
+    };
+    return templates[assetName] || `Will ${assetName} be above current price at expiry?`;
+  }
+
+  private categorizeAsset(name: string): MarketCategory {
+    const crypto = ["BTC", "ETH", "SOL", "HYPE", "AVAX", "DOGE", "ARB"];
+    if (crypto.includes(name)) return MarketCategory.CRYPTO;
+    return MarketCategory.CUSTOM;
+  }
+
+  private setupWsListeners(): void {
+    this.hl.on("ws:connected", () => { this.subscribePrices(); this.emit("connected"); });
+    this.hl.on("ws:disconnected", () => this.emit("disconnected"));
+    this.hl.on("ws:error", (err) => this.emit("error", err));
+  }
+
+  private pollingInterval: NodeJS.Timeout | null = null;
+
+  // WebSocket unavailable — falling back to REST polling every 3s
+  private startPolling(intervalMs: number = 3000): void {
+    this.pollingInterval = setInterval(async () => {
+      try {
+        const mids = await this.hl.getAllMids();
+        Object.entries(mids).forEach(([coin, px]) => this.priceCache.set(coin, parseFloat(px)));
+        this.emit(WsEventType.PRICE_TICK, mids);
+      } catch (err) {
+        // Silently retry
+      }
+    }, intervalMs);
+  }
+
+  destroy(): void {
+    this.hl.disconnectWs();
+    if (this.pollingInterval) clearInterval(this.pollingInterval);
+    this.removeAllListeners();
   }
 }
