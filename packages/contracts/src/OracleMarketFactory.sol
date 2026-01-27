@@ -102,4 +102,63 @@ contract OracleMarketFactory is Ownable, ReentrancyGuard {
     event CreatorAuthorized(address indexed creator);
     event CreatorRevoked(address indexed creator);
     event PermissionlessModeEnabled();
+
+    // ── Modifiers ──
+
+    modifier onlyAuthorizedCreator() {
+        require(
+            permissionlessMode || authorizedCreators[msg.sender] || msg.sender == owner(),
+            "Not authorized to create markets"
+        );
+        _;
+    }
+
+    modifier marketExists(bytes32 _marketId) {
+        require(markets[_marketId].createdAt != 0, "Market does not exist");
+        _;
+    }
+
+    // ── Constructor ──
+
+    constructor(address _feeRecipient) Ownable(msg.sender) {
+        feeRecipient = _feeRecipient;
+        authorizedCreators[msg.sender] = true;
+    }
+
+    function createMarket(
+        MarketParams calldata params
+    ) external onlyAuthorizedCreator nonReentrant returns (bytes32) {
+        require(bytes(params.question).length >= 10, "Question too short");
+        require(bytes(params.question).length <= 300, "Question too long");
+        require(params.expiresAt > block.timestamp, "Expiry must be in future");
+        require(params.expiresAt <= block.timestamp + 365 days, "Expiry too far");
+        require(params.oracleResolver != address(0), "Invalid oracle address");
+
+        bytes32 marketId = keccak256(
+            abi.encodePacked(params.question, params.expiresAt, block.timestamp, msg.sender)
+        );
+
+        require(markets[marketId].createdAt == 0, "Market already exists");
+
+        Market storage m = markets[marketId];
+        m.id = marketId;
+        m.question = params.question;
+        m.description = params.description;
+        m.category = params.category;
+        m.status = MarketStatus.Active;
+        m.createdAt = block.timestamp;
+        m.expiresAt = params.expiresAt;
+        m.creator = msg.sender;
+        m.oracleResolver = params.oracleResolver;
+        m.outcomeAssetId = params.outcomeAssetId;
+        m.resolutionSource = params.resolutionSource;
+        m.tags = params.tags;
+
+        marketIds.push(marketId);
+        creatorMarkets[msg.sender].push(marketId);
+
+        emit MarketCreated(marketId, params.question, params.category, params.expiresAt, params.outcomeAssetId, msg.sender);
+
+        return marketId;
+    }
 }
