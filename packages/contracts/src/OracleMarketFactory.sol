@@ -161,4 +161,33 @@ contract OracleMarketFactory is Ownable, ReentrancyGuard {
 
         return marketId;
     }
+
+    function resolveMarket(bytes32 _marketId, uint256 _outcome) external marketExists(_marketId) nonReentrant {
+        Market storage m = markets[_marketId];
+        require(msg.sender == m.oracleResolver || msg.sender == owner(), "Only oracle resolver or owner");
+        require(block.timestamp >= m.expiresAt, "Market has not expired");
+        require(m.status == MarketStatus.Active || m.status == MarketStatus.Paused, "Market not resolvable");
+        require(_outcome <= 1, "Outcome must be 0 or 1");
+
+        if (disputeWindow > 0) {
+            m.status = MarketStatus.Resolving;
+            m.resolution = _outcome;
+            emit ResolutionInitiated(_marketId, _outcome, msg.sender);
+        } else {
+            m.status = MarketStatus.Resolved;
+            m.resolution = _outcome;
+            m.resolvedAt = block.timestamp;
+            emit MarketResolved(_marketId, _outcome, block.timestamp);
+        }
+    }
+
+    function finalizeResolution(bytes32 _marketId) external marketExists(_marketId) {
+        Market storage m = markets[_marketId];
+        require(m.status == MarketStatus.Resolving, "Not in resolving state");
+        require(block.timestamp >= m.expiresAt + disputeWindow, "Dispute window not elapsed");
+
+        m.status = MarketStatus.Resolved;
+        m.resolvedAt = block.timestamp;
+        emit MarketResolved(_marketId, m.resolution, block.timestamp);
+    }
 }
