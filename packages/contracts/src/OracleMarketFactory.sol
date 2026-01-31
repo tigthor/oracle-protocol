@@ -153,7 +153,7 @@ contract OracleMarketFactory is Ownable, ReentrancyGuard {
     ) external onlyAuthorizedCreator nonReentrant returns (bytes32) {
         require(bytes(params.question).length >= 10, "Question too short");
         require(bytes(params.question).length <= 300, "Question too long");
-        // Validate expiry: must be in future, max 1 year
+        // Validate expiry: must be in future, max 1 year (365 days)
         require(params.expiresAt > block.timestamp, "Expiry must be in future");
         require(params.expiresAt <= block.timestamp + 365 days, "Expiry too far");
         require(params.oracleResolver != address(0), "Invalid oracle address");
