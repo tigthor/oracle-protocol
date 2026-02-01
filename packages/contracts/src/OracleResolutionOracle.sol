@@ -53,6 +53,7 @@ contract OracleResolutionOracle is Ownable {
     address[] public reporterList;
     mapping(bytes32 => ResolutionRound) public rounds;
     
+    // Require quorum: 60% weighted consensus by default
     uint256 public quorumThreshold = 60; // 60% weighted vote required
     uint256 public votingPeriod = 300;   // 5 min on testnet (24h mainnet)
     uint256 public minimumReporters = 2;
