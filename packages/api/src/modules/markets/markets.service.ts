@@ -37,5 +37,39 @@ export class MarketsService implements OnModuleInit {
     }
   }
 
+  async getAll(filters?: { category?: string; status?: string; search?: string; sortBy?: string; limit?: number; offset?: number }): Promise<{ markets: Market[]; total: number }> {
+    let markets = [...this.cachedMarkets];
+
+    if (filters?.category && filters.category !== "all") {
+      markets = markets.filter((m) => m.category === filters.category);
+    }
+
+    if (filters?.status) {
+      markets = markets.filter((m) => m.status === filters.status);
+    }
+
+    if (filters?.search) {
+      const q = filters.search.toLowerCase();
+      markets = markets.filter(
+        (m) => m.question.toLowerCase().includes(q) || m.tags.some((t) => t.includes(q))
+      );
+    }
+
+    if (filters?.sortBy === "volume") {
+      markets.sort((a, b) => b.volume24h - a.volume24h);
+    } else if (filters?.sortBy === "newest") {
+      markets.sort((a, b) => b.createdAt - a.createdAt);
+    } else if (filters?.sortBy === "expiring") {
+      markets.sort((a, b) => a.expiresAt - b.expiresAt);
+    }
+
+    const total = markets.length;
+    const offset = filters?.offset || 0;
+    const limit = filters?.limit || 50;
+    markets = markets.slice(offset, offset + limit);
+
+    return { markets, total };
+  }
+
   private getSeededMarkets(): Market[] { return []; }
 }
