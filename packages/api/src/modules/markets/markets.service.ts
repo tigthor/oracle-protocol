@@ -71,5 +71,40 @@ export class MarketsService implements OnModuleInit {
     return { markets, total };
   }
 
+
+  async getById(id: string): Promise<Market | null> {
+    return this.cachedMarkets.find((m) => m.id === id) || null;
+  }
+
+  async getOrderBook(coin: string) {
+    try { return await this.sdk.getOrderBook(coin); } catch { return this.getMockOrderBook(coin); }
+  }
+
+  async getRecentTrades(coin: string) {
+    try { return await this.sdk.getRecentTrades(coin); } catch { return []; }
+  }
+
+  async getCandles(coin: string, interval: string = "1h") {
+    try { return await this.sdk.getCandles(coin, interval); } catch { return []; }
+  }
+
+  async getUserPositions(address: string) {
+    try { return await this.sdk.getUserPositions(address); } catch { return []; }
+  }
+
+  async getUserBalance(address: string) {
+    try { return await this.sdk.getUserBalance(address); }
+    catch { return { accountValue: 0, withdrawable: 0, totalMarginUsed: 0, positions: 0 }; }
+  }
+
+  async getAllPrices() {
+    try { return await this.sdk.hl.getAllMids(); } catch { return {}; }
+  }
+
+  private getMockOrderBook(coin: string) {
+    const mid = this.cachedMarkets.find((m) => m.outcomeAssetId === coin)?.yesPrice || 0.5;
+    return { marketId: `hl-${coin}`, bids: [], asks: [], spread: 0.01, midPrice: mid, lastUpdate: Date.now() };
+  }
+
   private getSeededMarkets(): Market[] { return []; }
 }
