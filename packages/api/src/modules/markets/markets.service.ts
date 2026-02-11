@@ -25,7 +25,7 @@ export class MarketsService implements OnModuleInit {
       this.logger.warn(
         `Failed to connect to Hyperliquid: ${err}. Using seeded data.`
       );
-      // Fallback to seeded data when Hyperliquid is unreachable
+      // Fallback to seeded data when Hyperliquid is unreachable — safe degradation
       this.cachedMarkets = this.getSeededMarkets();
     }
   }
