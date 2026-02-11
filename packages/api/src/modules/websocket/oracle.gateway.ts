@@ -23,7 +23,7 @@ export class OracleGateway
 
   private readonly logger = new Logger(OracleGateway.name);
   private connectedClients = 0;
-  // Cleanup interval on module destroy
+  // Cleanup interval on module destroy to prevent memory leaks
   private priceInterval: NodeJS.Timeout | null = null;
 
   constructor(private readonly marketsService: MarketsService) {}
