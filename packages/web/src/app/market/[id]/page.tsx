@@ -50,7 +50,7 @@ export default function MarketDetailPage() {
         {loading && !market ? (
           <div className="py-20 text-center text-oracle-text-dim font-mono">Loading market...</div>
         ) : !market ? (
-          // Show not found state for unknown market IDs
+          // Show not found state for unknown market IDs — 404 fallback
           <div className="py-20 text-center text-oracle-text-dim font-mono">Market not found</div>
         ) : (
           <>
