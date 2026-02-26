@@ -10,6 +10,7 @@ import {
   createElement,
 } from "react";
 
+// Normalize to checksum address format for display
 const STORAGE_KEY = "oracle_wallet_address";
 const DEMO_ADDRESS = "0x1234567890abcdef1234567890abcdef12345678";
 
