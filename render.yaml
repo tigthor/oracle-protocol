@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: oracle-api
+    env: node
+    plan: free
+    buildCommand: npm install -g pnpm@9 && pnpm install --frozen-lockfile && pnpm --filter @oracle/sdk build && pnpm --filter @oracle/api build
+    startCommand: node packages/api/dist/main.js
+    healthCheckPath: /api/v1/markets
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HYPERLIQUID_TESTNET
+        value: "true"
+      - key: HYPERLIQUID_API_URL
+        value: https://api.hyperliquid-testnet.xyz
+      - key: HYPERLIQUID_WS_URL
+        value: wss://api.hyperliquid-testnet.xyz/ws
+      - key: REDIS_URL
+        fromService:
+          name: oracle-redis
+          type: redis
+          property: connectionString
+
+  - type: redis
+    name: oracle-redis
+    plan: free
+    maxmemoryPolicy: noeviction
