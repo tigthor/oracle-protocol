@@ -23,6 +23,7 @@ async function bootstrap() {
   console.log(`🔮 ORACLE API running on http://localhost:${port}`);
   console.log(`   Mode: ${process.env.NODE_ENV || "development"}`);
   console.log(`   Network: ${process.env.HYPERLIQUID_TESTNET === "true" ? "TESTNET" : "MAINNET"}`);
+  console.log(`   Port: ${port}`);
 }
 
 bootstrap();
