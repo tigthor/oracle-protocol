@@ -81,7 +81,7 @@ export class OracleSDK extends EventEmitter {
   }
 
   async getMarket(marketId: string): Promise<Market | null> {
-    // Cache hit: return stored market without re-fetching
+    // Cache hit: return stored market without re-fetching from Hyperliquid
     if (this.markets.has(marketId)) {
       return this.markets.get(marketId)!;
     }
