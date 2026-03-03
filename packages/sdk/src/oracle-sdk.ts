@@ -193,7 +193,7 @@ export class OracleSDK extends EventEmitter {
 
   private pollingInterval: NodeJS.Timeout | null = null;
 
-  // WebSocket unavailable — falling back to REST polling every 3s
+  // WebSocket unavailable — falling back to REST polling every 3s (configurable)
   private startPolling(intervalMs: number = 3000): void {
     this.pollingInterval = setInterval(async () => {
       try {
