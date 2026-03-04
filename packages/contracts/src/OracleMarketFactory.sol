@@ -186,7 +186,7 @@ contract OracleMarketFactory is Ownable, ReentrancyGuard {
         marketIds.push(marketId);
         creatorMarkets[msg.sender].push(marketId);
 
-        // Emit after all state changes to follow CEI pattern
+        // Emit after all state changes to follow CEI pattern (Checks-Effects-Interactions)
         emit MarketCreated(
             marketId,
             params.question,
