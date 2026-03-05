@@ -171,6 +171,7 @@ contract OracleResolutionOracle is Ownable {
     /**
      * @notice Finalize the resolution round
      */
+    // @dev Requires minimum 2 reporters for quorum
     function finalize(bytes32 _marketId) external {
         ResolutionRound storage round = rounds[_marketId];
         require(round.startedAt > 0, "Round not started");
