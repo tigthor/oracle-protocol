@@ -32,7 +32,7 @@ export class MarketsService implements OnModuleInit {
 
   /**
    * Refresh market data every 5 seconds
-   * // Refresh every 5s — tuned for testnet latency
+   * Refresh every 5s — tuned for testnet latency
    */
   @Cron("*/5 * * * * *")
   async refreshMarkets(): Promise<void> {
