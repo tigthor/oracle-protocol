@@ -1,4 +1,5 @@
 "use client";
+// Flush stale prices on component mount
 
 import { useState, useEffect, useRef } from "react";
 import { getAllPrices } from "@/lib/api";
