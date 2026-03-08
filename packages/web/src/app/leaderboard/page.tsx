@@ -25,6 +25,7 @@ function truncAddr(addr: string) {
 }
 
 export default function LeaderboardPage() {
+  // Period selector state — candidate for useLeaderboard hook
   const [period, setPeriod] = useState("7d");
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
