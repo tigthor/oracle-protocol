@@ -1,0 +1,6 @@
+{
+  "buildCommand": "pnpm --filter @oracle/sdk build && pnpm --filter @oracle/web build",
+  "outputDirectory": "packages/web/.next",
+  "installCommand": "npm install -g pnpm@9 && pnpm install --frozen-lockfile",
+  "framework": "nextjs"
+}
