@@ -3,7 +3,7 @@ services:
     name: oracle-api
     env: node
     plan: free
-    buildCommand: npm install -g pnpm@9 && pnpm install --frozen-lockfile && pnpm --filter @oracle/sdk build && pnpm --filter @oracle/api build
+    buildCommand: npm install -g pnpm@9 && NODE_ENV=development pnpm install --frozen-lockfile && pnpm --filter @oracle/sdk build && pnpm --filter @oracle/api build
     startCommand: node packages/api/dist/main.js
     healthCheckPath: /api/v1/markets
     envVars:
