@@ -1,10 +1,23 @@
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-async function fetchApi<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, { cache: "no-store" });
-  if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`);
-  return res.json();
+async function fetchApi<T>(path: string, retries = 3, delayMs = 2000): Promise<T> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(`${API_URL}${path}`, { cache: "no-store" });
+      if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`);
+      return res.json();
+    } catch (err: any) {
+      if (attempt === retries) {
+        const msg = err?.message === "Failed to fetch"
+          ? "API warming up — retrying..."
+          : err?.message;
+        throw new Error(msg);
+      }
+      await new Promise((r) => setTimeout(r, delayMs * (attempt + 1)));
+    }
+  }
+  throw new Error("API unreachable");
 }
 
 // ── Types mirrored from @oracle/sdk ──

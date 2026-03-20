@@ -101,8 +101,9 @@ export default function MarketsPage() {
         </div>
 
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-oracle-red/10 border border-oracle-red/20 text-xs text-oracle-red font-mono">
-            API Error: {error}. Retrying...
+          <div className="mb-4 p-3 rounded-lg bg-oracle-yellow/10 border border-oracle-yellow/20 text-xs text-oracle-yellow font-mono flex items-center gap-2">
+            <span className="animate-pulse">◉</span>
+            {error}
           </div>
         )}
 
