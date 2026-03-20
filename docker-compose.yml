@@ -1,0 +1,81 @@
+version: "3.9"
+
+services:
+  # PostgreSQL + TimescaleDB for market data
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    environment:
+      POSTGRES_DB: oracle
+      POSTGRES_USER: oracle
+      POSTGRES_PASSWORD: oracle_dev_2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oracle"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching + pub/sub
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ORACLE API (NestJS)
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DATABASE_URL: postgresql://oracle:oracle_dev_2026@postgres:5432/oracle
+      REDIS_URL: redis://redis:6379
+      HYPERLIQUID_TESTNET: "true"
+      HYPERLIQUID_API_URL: https://api.hyperliquid-testnet.xyz
+      HYPERLIQUID_WS_URL: wss://api.hyperliquid-testnet.xyz/ws
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./packages/api/src:/app/packages/api/src
+      - ./packages/sdk/src:/app/packages/sdk/src
+
+  # ORACLE Web (Next.js)
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+      NEXT_PUBLIC_WS_URL: ws://localhost:4000
+      NEXT_PUBLIC_HL_API_URL: https://api.hyperliquid-testnet.xyz
+      NEXT_PUBLIC_HL_WS_URL: wss://api.hyperliquid-testnet.xyz/ws
+      NEXT_PUBLIC_CHAIN_ID: "998"
+      NEXT_PUBLIC_IS_TESTNET: "true"
+    depends_on:
+      - api
+    volumes:
+      - ./packages/web/src:/app/packages/web/src
+
+volumes:
+  postgres_data:
+  redis_data:
