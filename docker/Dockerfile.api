@@ -1,0 +1,33 @@
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+RUN npm install -g pnpm@9
+
+COPY package.json pnpm-lock.yaml turbo.json ./
+COPY packages/sdk/package.json ./packages/sdk/
+COPY packages/api/package.json ./packages/api/
+
+RUN pnpm install --frozen-lockfile
+
+COPY packages/sdk ./packages/sdk
+COPY packages/api ./packages/api
+
+RUN pnpm --filter @oracle/sdk build
+RUN pnpm --filter @oracle/api build
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages/sdk/dist ./packages/sdk/dist
+COPY --from=builder /app/packages/api/dist ./packages/api/dist
+COPY --from=builder /app/packages/api/node_modules ./packages/api/node_modules
+
+ENV NODE_ENV=production
+ENV PORT=4000
+
+EXPOSE 4000
+
+CMD ["node", "packages/api/dist/main.js"]
