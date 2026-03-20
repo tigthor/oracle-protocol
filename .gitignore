@@ -12,3 +12,8 @@ coverage/
 artifacts/
 cache/
 typechain-types/
+
+# SDK compiled artifacts (built to src/ by ts-node)
+packages/sdk/src/*.js
+packages/sdk/src/*.js.map
+packages/sdk/src/*.d.ts
